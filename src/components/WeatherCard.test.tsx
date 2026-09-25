@@ -20,6 +20,20 @@ const weather: WeatherData = {
     wind_speed_10m: 10,
     relative_humidity_2m: 62,
   },
+  daily: {
+    time: [
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+    ],
+    temperature_2m_max: [20, 21, 22, 23, 24, 25, 26],
+    temperature_2m_min: [10, 11, 12, 13, 14, 15, 16],
+    weather_code: [0, 1, 2, 3, 45, 51, 95],
+  },
 };
 
 describe("WeatherCard", () => {
