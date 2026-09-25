@@ -10,22 +10,37 @@ const location = {
   admin1: "São Paulo",
 };
 
+const current = {
+  temperature_2m: 24,
+  apparent_temperature: 25,
+  weather_code: 1,
+  wind_speed_10m: 10,
+  relative_humidity_2m: 62,
+};
+
+const daily = {
+  time: [
+    "2026-09-25",
+    "2026-09-26",
+    "2026-09-27",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-10-01",
+  ],
+  temperature_2m_max: [20, 21, 22, 23, 24, 25, 26],
+  temperature_2m_min: [10, 11, 12, 13, 14, 15, 16],
+  weather_code: [0, 1, 2, 3, 45, 51, 95],
+};
+
+const forecast = { current, daily };
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/v1/search?**", (route) =>
     route.fulfill({ json: { results: [location] } }),
   );
   await page.route("**/v1/forecast?**", (route) =>
-    route.fulfill({
-      json: {
-        current: {
-          temperature_2m: 24,
-          apparent_temperature: 25,
-          weather_code: 1,
-          wind_speed_10m: 10,
-          relative_humidity_2m: 62,
-        },
-      },
-    }),
+    route.fulfill({ json: forecast }),
   );
   await page.goto("/");
 });
@@ -51,6 +66,47 @@ test("baseline: busca uma cidade e apresenta o clima atual", async ({
   await expect(card).toContainText("Principalmente limpo");
   await expect(card).toContainText("Vento: 10 km/h");
   await expect(card).toContainText("Umidade: 62%");
+});
+
+test("CA5.1-CA5.3: apresenta a previsão de sete dias após selecionar a cidade", async ({
+  page,
+}) => {
+  await searchAndSelectCity(page);
+
+  const forecastRegion = page.getByRole("region", {
+    name: "Previsão de 7 dias para São Paulo",
+  });
+  const entries = forecastRegion.getByRole("listitem");
+  const expectedConditions = [
+    "Céu limpo",
+    "Principalmente limpo",
+    "Parcialmente nublado",
+    "Encoberto",
+    "Névoa",
+    "Chuvisco leve",
+    "Tempestade",
+  ];
+
+  await expect(forecastRegion).toBeVisible();
+  await expect(entries).toHaveCount(7);
+
+  for (let index = 0; index < daily.time.length; index += 1) {
+    const entry = entries.nth(index);
+    const condition = expectedConditions[index];
+
+    await expect(entry.locator("time")).toHaveAttribute(
+      "datetime",
+      daily.time[index],
+    );
+    await expect(entry).toContainText(
+      `Máx.: ${daily.temperature_2m_max[index]}°C`,
+    );
+    await expect(entry).toContainText(
+      `Mín.: ${daily.temperature_2m_min[index]}°C`,
+    );
+    await expect(entry).toContainText(condition);
+    await expect(entry.getByRole("img", { name: condition })).toBeVisible();
+  }
 });
 
 test("CA1.4: apresenta erro quando a busca de cidades falha", async ({
@@ -79,17 +135,7 @@ test("CA2.5: apresenta loading enquanto consulta o clima", async ({ page }) => {
   });
   await page.route("**/v1/forecast?**", async (route) => {
     await forecastRelease;
-    await route.fulfill({
-      json: {
-        current: {
-          temperature_2m: 24,
-          apparent_temperature: 25,
-          weather_code: 1,
-          wind_speed_10m: 10,
-          relative_humidity_2m: 62,
-        },
-      },
-    });
+    await route.fulfill({ json: forecast });
   });
 
   const selection = searchAndSelectCity(page);
